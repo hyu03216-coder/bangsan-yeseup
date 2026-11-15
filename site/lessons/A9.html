@@ -1,0 +1,124 @@
+<!DOCTYPE html>
+<html lang="ko">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width,initial-scale=1,viewport-fit=cover">
+<title>A9 예습 · 부정적분</title>
+<link rel="preconnect" href="https://fonts.googleapis.com"><link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=Noto+Sans+KR:wght@400;500;700;800&display=swap" rel="stylesheet">
+<link rel="stylesheet" href="../assets/katex/katex.min.css">
+<link rel="stylesheet" href="../assets/style.css">
+<script defer src="../assets/katex/katex.min.js"></script>
+<script defer src="../assets/katex/auto-render.min.js"></script>
+<script defer src="../config.js"></script>
+<script defer src="../assets/api.js"></script>
+<script>
+/* ───────── A9 예습 자료 (이 부분만 차시마다 바뀜) ─────────
+   lines 안의 [[b1]] = 빈칸 자리, $…$ = 수식
+   빈칸: type "input"(직접 쓰기, answer = 맞는 답 목록) / "choice"(고르기, answer = 정답 번호, 0부터)
+   show = 맞히거나 공개됐을 때 빈칸에 보이는 모양 */
+window.LESSON = {
+  id: "A9", title: "부정적분", unit: "적분", minutes: 7,
+  cards: [
+    {
+      tag: "이전 개념", title: "미분 다시 보기",
+      lines: [
+        "$x^n$을 미분하면 $nx^{n-1}$이었지.",
+        "$y=x^2$을 미분하면 $y'=$ [[b1]]",
+        "$y=x^3$을 미분하면 $y'=$ [[b2]]",
+        "$y=x^2+5$를 미분하면 $y'=$ [[b3]]"
+      ],
+      blanks: {
+        b1: { type: "input", answer: ["2x"], show: "$2x$", placeholder: "2x", hint: "$x^n$ → $nx^{n-1}$에 $n=2$를 넣어 봐." },
+        b2: { type: "input", answer: ["3x^2"], show: "$3x^2$", placeholder: "3x²", hint: "$n=3$을 넣어 봐. 제곱은 □² 단추로 쓸 수 있어." },
+        b3: { type: "choice", options: ["$2x$", "$2x+5$", "$2x+1$"], answer: 0, show: "$2x$", hint: "상수 5를 미분하면 0이야." }
+      },
+      confuse: {
+        label: "상수를 미분하면 0이 되는 것",
+        frames: {
+          why: "왜 상수를 미분하면 0이 될까?",
+          diff: "x²과 x²+5는 무엇이 다를까? 그런데 왜 미분하면 같아질까?",
+          "if": "만약 상수 대신 x를 더하면 미분한 결과가 어떻게 될까?",
+          how: "상수를 미분하면 0이 된다는 것은 어떻게 보일 수 있을까?"
+        }
+      },
+      teacherNote: "③ $x^2+5$ → $2x$: 상수가 사라진다는 점이 카드 3의 $+C$로 이어짐."
+    },
+    {
+      tag: "거꾸로 생각", title: "미분해서 $2x$가 되는 함수는?",
+      lines: [
+        "$x^2$, $x^2+1$, $x^2-2$ … 모두 미분하면 $2x$야.",
+        "그래프로 보면 같은 $x$에서 접선의 기울기가 모두 같아.",
+        "그래서 미분해서 $2x$가 되는 함수는 [[b4]]",
+        "이 함수들은 모두 $x^2+$ (  [[b5]]  ) 꼴이야."
+      ],
+      figure: '<svg viewBox="0 0 300 210" xmlns="http://www.w3.org/2000/svg" font-family="Noto Sans KR, sans-serif" font-size="12">'
+        + '<line x1="34" y1="140" x2="276" y2="140" stroke="#8a93a3"/><polygon points="276,136 284,140 276,144" fill="#8a93a3"/>'
+        + '<line x1="150" y1="204" x2="150" y2="8" stroke="#8a93a3"/><polygon points="146,10 150,2 154,10" fill="#8a93a3"/>'
+        + '<text x="282" y="156" fill="#5d6675" font-style="italic">x</text><text x="156" y="12" fill="#5d6675" font-style="italic">y</text>'
+        + '<line x1="205" y1="10" x2="205" y2="204" stroke="#c8a226" stroke-dasharray="3 4"/><text x="200" y="156" fill="#7a6213">1</text>'
+        + '<polyline points="45.5,53.4 52.5,64.5 59.4,74.9 66.4,84.6 73.4,93.4 80.3,101.5 87.3,108.8 94.3,115.4 101.2,121.1 108.2,126.1 115.2,130.4 122.1,133.8 129.1,136.5 136.1,138.5 143.0,139.6 150.0,140.0 157.0,139.6 163.9,138.5 170.9,136.5 177.9,133.8 184.8,130.4 191.8,126.1 198.8,121.1 205.7,115.4 212.7,108.8 219.7,101.5 226.6,93.4 233.6,84.6 240.6,74.9 247.5,64.5 254.5,53.4" fill="none" stroke="#2b3d5c" stroke-width="2.4"/>'
+        + '<line x1="169.2" y1="147.2" x2="240.8" y2="84.8" stroke="#2b3d5c" stroke-width="1.6" stroke-dasharray="5 4"/><circle cx="205" cy="116" r="3.6" fill="#2b3d5c"/>'
+        + '<polyline points="45.5,29.4 52.5,40.5 59.4,50.9 66.4,60.6 73.4,69.4 80.3,77.5 87.3,84.8 94.3,91.4 101.2,97.1 108.2,102.1 115.2,106.4 122.1,109.8 129.1,112.5 136.1,114.5 143.0,115.6 150.0,116.0 157.0,115.6 163.9,114.5 170.9,112.5 177.9,109.8 184.8,106.4 191.8,102.1 198.8,97.1 205.7,91.4 212.7,84.8 219.7,77.5 226.6,69.4 233.6,60.6 240.6,50.9 247.5,40.5 254.5,29.4" fill="none" stroke="#e7733b" stroke-width="2.4"/>'
+        + '<line x1="169.2" y1="123.2" x2="240.8" y2="60.8" stroke="#e7733b" stroke-width="1.6" stroke-dasharray="5 4"/><circle cx="205" cy="92" r="3.6" fill="#e7733b"/>'
+        + '<polyline points="45.5,101.4 52.5,112.5 59.4,122.9 66.4,132.6 73.4,141.4 80.3,149.5 87.3,156.8 94.3,163.4 101.2,169.1 108.2,174.1 115.2,178.4 122.1,181.8 129.1,184.5 136.1,186.5 143.0,187.6 150.0,188.0 157.0,187.6 163.9,186.5 170.9,184.5 177.9,181.8 184.8,178.4 191.8,174.1 198.8,169.1 205.7,163.4 212.7,156.8 219.7,149.5 226.6,141.4 233.6,132.6 240.6,122.9 247.5,112.5 254.5,101.4" fill="none" stroke="#3f7ebe" stroke-width="2.4"/>'
+        + '<line x1="169.2" y1="195.2" x2="240.8" y2="132.8" stroke="#3f7ebe" stroke-width="1.6" stroke-dasharray="5 4"/><circle cx="205" cy="164" r="3.6" fill="#3f7ebe"/>'
+        + '<text x="14" y="26" fill="#e7733b" font-weight="700">y=x²+1</text><text x="14" y="52" fill="#2b3d5c" font-weight="700">y=x²</text><text x="14" y="98" fill="#3f7ebe" font-weight="700">y=x²−2</text>'
+        + '</svg>',
+      caption: "$x=1$에서 세 접선(점선)은 모두 기울기가 $2$로 평행해.",
+      blanks: {
+        b4: { type: "choice", options: ["하나뿐이다.", "무수히 많다."], answer: 1, show: "무수히 많다.", hint: "$x^2$ 뒤에 아무 상수나 붙여 봐. 미분하면 어떻게 될까?" },
+        b5: { type: "choice", options: ["상수", "$x$", "$2x$"], answer: 0, show: "상수", hint: "위 세 함수에서 $x^2$ 뒤에 붙은 것은 $0, 1, -2$야." }
+      },
+      confuse: {
+        label: "미분해서 $2x$가 되는 함수가 여러 개인 것",
+        frames: {
+          why: "왜 미분해서 2x가 되는 함수가 하나가 아닐까?",
+          diff: "x²과 x²+1은 그래프가 무엇이 다를까? 그런데 접선의 기울기는 왜 같을까?",
+          "if": "만약 x=0일 때 함숫값이 3이라는 조건이 있으면 함수가 하나로 정해질까?",
+          how: "미분해서 2x가 되는 함수를 모두 한 번에 어떻게 나타낼 수 있을까?"
+        }
+      },
+      teacherNote: "그래프는 위아래 평행이동 → 같은 $x$에서 접선이 평행. '하나로 정하려면 조건이 필요하다'는 질문이 나오면 다음 차시와 연결."
+    },
+    {
+      tag: "오늘 개념", today: true, title: "부정적분",
+      lines: [
+        "$F'(x)=f(x)$일 때, $F(x)$를 $f(x)$의 [[b6]]이라고 해.",
+        "기호로 $\\displaystyle\\int f(x)\\,dx=F(x)+C$ 로 쓰고, $C$를 [[b7]]라고 해.",
+        "($\\int$은 '인테그랄', $dx$는 '$x$에 대하여'라고 읽어.)",
+        "예: $\\displaystyle\\int 3x^2\\,dx=$ [[b8]] $+\\,C$"
+      ],
+      blanks: {
+        b6: { type: "choice", options: ["도함수", "부정적분", "미분계수"], answer: 1, show: "부정적분", hint: "도함수는 미분해서 얻은 함수야. 여기서는 거꾸로, 미분하기 전 함수의 이름이야." },
+        b7: { type: "choice", options: ["적분상수", "미분계수", "기울기"], answer: 0, show: "적분상수", hint: "카드 2에서 $x^2$ 뒤에 붙던 '상수'를 떠올려 봐." },
+        b8: { type: "input", answer: ["x^3"], show: "$x^3$", placeholder: "x³", hint: "미분해서 $3x^2$이 되는 함수는? 카드 1을 봐." }
+      },
+      confuse: {
+        label: "적분상수 $C$",
+        frames: {
+          why: "왜 부정적분에는 +C를 꼭 붙일까?",
+          diff: "부정적분과 도함수는 무엇이 다를까?",
+          "if": "만약 +C를 빼고 쓰면 무엇이 틀리게 될까?",
+          how: "∫f(x)dx는 어떻게 구할 수 있을까? 다항함수는 규칙이 있을까?"
+        }
+      },
+      teacherNote: "$dx$는 지금은 '어떤 변수로 적분하는지' 표시 정도로만. $F$와 $f$의 대소문자 구분을 꼭 짚기."
+    }
+  ],
+  example: "<p style='margin:6px 0 0'>어디서 막혔는지와 무엇이 궁금한지가 함께 있으면 좋은 질문이야.</p><p style='margin:6px 0 0'>예) 카드 2에서 $x^2+1$도 답이 되는 걸 봤어. 그러면 $\\int 2x\\,dx$의 답은 몇 개라고 써야 할까?</p>",
+  teacher: {
+    expected: [
+      { frame: "why", q: "왜 부정적분에는 $+C$를 꼭 붙일까?", link: "수업 첫 활동: 카드 2 그래프로 '미분하면 같아지는 함수들' 보기" },
+      { frame: "diff", q: "부정적분과 도함수는 무엇이 다를까?", link: "미분 ↔ 부정적분 화살표로 정리" },
+      { frame: "if", q: "$x=0$일 때 값이 정해지면 함수가 하나로 정해질까?", link: "2쪽 '2등급 이상을 위해!' 적분상수 정하기" },
+      { frame: "how", q: "$x^n$의 부정적분은 어떤 규칙으로 구할까?", link: "다음 차시(부정적분 계산) 예고" },
+      { frame: "how", q: "$\\int$ 기호와 $dx$는 무슨 뜻일까?", link: "정적분 차시에서 다시 다룸 — 지금은 읽는 법만" }
+    ]
+  }
+};
+</script>
+<script defer src="../assets/lesson.js"></script>
+</head>
+<body><div class="wrap" id="app"></div></body>
+</html>

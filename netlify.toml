@@ -1,0 +1,20 @@
+# Netlify 설정 — 사이트로 공개되는 것은 site 폴더뿐 (apps-script 폴더는 공개되지 않음)
+[build]
+  publish = "site"
+  command = ""
+
+[[headers]]
+  for = "/*"
+  [headers.values]
+    X-Content-Type-Options = "nosniff"
+    Referrer-Policy = "strict-origin-when-cross-origin"
+
+[[headers]]
+  for = "/lessons.json"
+  [headers.values]
+    Cache-Control = "no-cache"
+
+[[headers]]
+  for = "/teacher.html"
+  [headers.values]
+    X-Robots-Tag = "noindex"

@@ -1,0 +1,37 @@
+<!DOCTYPE html>
+<html lang="ko">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width,initial-scale=1,viewport-fit=cover">
+<title>미적분Ⅰ 예습</title>
+<link rel="preconnect" href="https://fonts.googleapis.com"><link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=Noto+Sans+KR:wght@400;500;700;800&display=swap" rel="stylesheet">
+<link rel="stylesheet" href="assets/style.css">
+<script src="config.js"></script>
+</head>
+<body>
+<div class="wrap">
+  <div class="hero"><h1 id="ttl">미적분Ⅰ 예습</h1><p>수업 전에 5~10분, 읽고 → 빈칸 채우고 → 질문 만들기</p></div>
+  <div id="list"><p class="guide">예습 목록을 불러오는 중…</p></div>
+  <div class="foot"><a href="teacher.html">선생님 화면</a></div>
+</div>
+<script>
+(function () {
+  var C = window.YESEUP_CONFIG || {};
+  document.getElementById("ttl").textContent = (C.COURSE || "미적분Ⅰ") + " 예습";
+  function esc(s) { return String(s).replace(/[&<>"']/g, function (c) { return { "&": "&amp;", "<": "&lt;", ">": "&gt;", '"': "&quot;", "'": "&#39;" }[c]; }); }
+  function stateOf(id) { try { return JSON.parse(localStorage.getItem("yeseup_" + id)) || {}; } catch (e) { return {}; } }
+  fetch("lessons.json", { cache: "no-cache" }).then(function (r) { return r.json(); }).then(function (ls) {
+    ls = ls.slice().reverse(); // 최근 차시가 위로
+    document.getElementById("list").innerHTML = ls.map(function (l, i) {
+      var s = stateOf(l.id), st = s.submitted ? "조 질문 냄 ✓" : (s.blanks && Object.keys(s.blanks).length ? "하는 중" : "");
+      return '<a class="lesson' + (i === 0 ? " new" : "") + '" href="' + esc(l.file) + '"><span class="no">' + esc(l.id) + '</span><span><div class="t">' + esc(l.title) +
+        '</div><div class="s">' + esc(l.unit || "") + " · 약 " + (l.minutes || 7) + '분</div></span><span class="st' + (s.submitted ? " on" : "") + '">' + st + "</span></a>";
+    }).join("");
+  }).catch(function () {
+    document.getElementById("list").innerHTML = '<p class="guide">목록을 불러오지 못했어. 잠시 뒤 새로고침해 줘.</p>';
+  });
+})();
+</script>
+</body>
+</html>

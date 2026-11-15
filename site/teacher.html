@@ -1,0 +1,61 @@
+<!DOCTYPE html>
+<html lang="ko">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width,initial-scale=1">
+<meta name="robots" content="noindex">
+<title>예습 질문 모아 보기 · 교사</title>
+<link rel="preconnect" href="https://fonts.googleapis.com"><link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=Noto+Sans+KR:wght@400;500;700;800&display=swap" rel="stylesheet">
+<link rel="stylesheet" href="assets/teacher.css">
+<script defer src="config.js"></script>
+<script defer src="assets/api.js"></script>
+<script defer src="assets/teacher.js"></script>
+</head>
+<body>
+<div id="login" class="login">
+  <form id="lform">
+    <h1>예습 질문 모아 보기</h1>
+    <p>교사용 화면입니다. 암호를 넣어 주세요.</p>
+    <input id="key" type="password" autocomplete="current-password" placeholder="교사 암호">
+    <button type="submit">들어가기</button>
+    <div id="lmsg" class="lmsg"></div>
+  </form>
+</div>
+
+<header class="tbar">
+  <div class="tl">
+    <a href="index.html" class="home">예습</a>
+    <h1>질문 모아 보기</h1>
+    <select id="lesson" title="차시"></select>
+  </div>
+  <nav class="tabs" id="tabs">
+    <button data-v="group" class="on">조별</button>
+    <button data-v="tag">분류별</button>
+    <button data-v="star">★ 다룰 질문</button>
+  </nav>
+  <div class="tools">
+    <button id="selBtn" title="여러 질문을 골라 비슷한 것끼리 묶기">묶기</button>
+    <button id="tagBtn">분류 관리</button>
+    <label class="tg"><input type="checkbox" id="hidChk"> 숨긴 질문</label>
+    <label class="tg"><input type="checkbox" id="autoChk" checked> 자동 새로고침</label>
+    <button id="refBtn">새로고침</button>
+    <a id="sheetBtn" target="_blank" rel="noopener" hidden>시트 열기</a>
+  </div>
+</header>
+<div id="demo" class="demo" hidden>체험 모드 — 아직 구글 시트와 연결되지 않았습니다(config.js의 API_URL). 질문이 이 기기에만 저장됩니다.
+  <button id="seed">예시 질문 넣기</button><button id="clear">비우기</button></div>
+<div class="status" id="status"></div>
+<main id="board"></main>
+<div class="selbar" id="selbar" hidden><span id="selN"></span><button id="doCluster">묶기</button><button id="unCluster">묶음 풀기</button><button id="selCancel">끝내기</button></div>
+
+<div class="zoom" id="zoom" hidden>
+  <div class="zmeta"><span id="zg"></span><span id="zi"></span><button id="zfull">전체 화면</button><button id="zclose">닫기 ✕</button></div>
+  <div class="ztext" id="zt"></div>
+  <div class="ztools" id="ztools"></div>
+  <button class="znav prev" id="zprev" aria-label="이전">‹</button><button class="znav next" id="znext" aria-label="다음">›</button>
+</div>
+<div class="modal" id="modal" hidden></div>
+<div class="toast" id="toast"></div>
+</body>
+</html>
