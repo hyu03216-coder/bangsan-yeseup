@@ -190,6 +190,11 @@
     if (r < total(i)) { st.rev[i] = r + 1; save(); paintCard(i, true); paintNav(); paintSteps(); scrollToCur(i); return; }
     go(cur + 1);
   }
+  function retreat() {
+    var s = SL[cur];
+    if (s.card == null || TEACHER || rev(s.card) <= 1) { go(cur - 1); return; }
+    var i = s.card; st.rev[i] = rev(i) - 1; save(); paintCard(i); paintNav(); paintSteps(); scrollToCur(i);
+  }
 
   /* ── 넘기기 ── */
   var track = $("#track"), slides = $$(".slide"), cur = 0, stage = $("#stage");
@@ -203,8 +208,11 @@
     });
   }
   function paintNav() {
-    var s = SL[cur], nx = $("#next");
-    $("#prev").style.visibility = cur > 0 ? "visible" : "hidden";
+    var s = SL[cur], nx = $("#next"), pv = $("#prev");
+    var lineBack = s.card != null && !TEACHER && rev(s.card) > 1;
+    pv.style.visibility = cur > 0 ? "visible" : "hidden";
+    pv.classList.toggle("line", lineBack);
+    pv.innerHTML = lineBack ? "◂ 이전 줄" : "← 이전";
     var w = (cur + 1) + " / " + SL.length;
     if (s.card != null && !TEACHER && rev(s.card) < total(s.card)) {
       nx.style.visibility = "visible"; nx.classList.add("line");
@@ -231,7 +239,7 @@
   // 입력칸에 초점이 갈 때 브라우저가 무대를 옆으로 밀지 않게
   stage.addEventListener("scroll", function () { if (stage.scrollLeft) stage.scrollLeft = 0; });
   slides.forEach(function (sl) { sl.addEventListener("scroll", function () { if (sl.scrollLeft) sl.scrollLeft = 0; }); });
-  $("#prev").onclick = function () { go(cur - 1); };
+  $("#prev").onclick = retreat;
   $("#next").onclick = advance;
   $$("#steps button").forEach(function (b) { b.onclick = function () { go(+b.dataset.i); }; });
   $$("[data-go]").forEach(function (b) { b.onclick = function () { go(+b.dataset.go); }; });
@@ -246,7 +254,7 @@
   document.addEventListener("keydown", function (e) {
     var t = e.target.tagName; if (t === "INPUT" || t === "TEXTAREA" || t === "SELECT") return;
     if (e.key === "ArrowRight" || e.key === "PageDown" || (e.key === " " && SL[cur].card != null)) { e.preventDefault(); advance(); }
-    else if (e.key === "ArrowLeft" || e.key === "PageUp") { e.preventDefault(); go(cur - 1); }
+    else if (e.key === "ArrowLeft" || e.key === "PageUp" || e.key === "Backspace") { e.preventDefault(); retreat(); }
   });
   var sx = 0, sy = 0, tracking = false;
   stage.addEventListener("touchstart", function (e) {
@@ -257,7 +265,7 @@
   stage.addEventListener("touchend", function (e) {
     if (!tracking) return; tracking = false;
     var dx = e.changedTouches[0].clientX - sx, dy = e.changedTouches[0].clientY - sy;
-    if (Math.abs(dx) > 70 && Math.abs(dx) > 1.6 * Math.abs(dy)) { if (dx < 0) advance(); else go(cur - 1); }
+    if (Math.abs(dx) > 70 && Math.abs(dx) > 1.6 * Math.abs(dy)) { if (dx < 0) advance(); else retreat(); }
   }, { passive: true });
 
   /* ── 빈칸 ──
