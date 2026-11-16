@@ -34,7 +34,16 @@
     return String(s).toLowerCase().replace(/\s+/g, "").replace(/²/g, "^2").replace(/³/g, "^3")
       .replace(/\*\*/g, "^").replace(/\*/g, "").replace(/[{}$]/g, "").replace(/−/g, "-");
   }
-  function cardDone(i) { return Object.keys(L.cards[i].blanks || {}).every(function (k) { var b = st.blanks[k]; return b && (b.s === "ok" || b.s === "shown"); }); }
+  function cardDone(i) { return Object.keys(L.cards[i].blanks || {}).every(function (k) { var b = st.blanks[k]; return b && (b.s === "ok" || b.s === "shown" || b.s === "seen"); }); }
+  /* 줄바꿈: 수식·빈칸이 뒤따르는 조사와 떨어지지 않게 묶는다 */
+  function glue(t) {
+    return String(t)
+      .replace(/(\$[^$]+\$)([가-힣]+[.,!?]?)/g, '<span class="nb">$1$2</span>')
+      .replace(/\[\[(\w+)\]\]([가-힣]+[.,!?]?)?/g, function (_, k, j) { return '<span class="nb">[[' + k + ']]' + (j || "") + "</span>"; })
+      .replace(/([가-힣]+[.,]?)\s(<span class="nb">\[\[\w+\]\][^<]*<\/span>)/g, '<span class="nb">$1 $2</span>');
+  }
+  function blanks(t) { return t.replace(/\[\[(\w+)\]\]/g, function (_, k) { return '<span class="bk" data-b="' + k + '"></span>'; }); }
+  function para(t, cls) { return '<p' + (cls ? ' class="' + cls + '"' : "") + ">" + blanks(glue(t)) + "</p>"; }
 
   /* ── 장(슬라이드) 목록 ── */
   var SL = [{ id: "intro", chip: "시작", name: "시작하기" }];
@@ -60,7 +69,7 @@
       h.push("<h2>" + esc(L.id) + ". " + esc(L.title) + "</h2>");
       if (TEACHER) h.push('<p class="lead">교사용 미리보기입니다. 빈칸 정답이 빨간색으로, 카드마다 지도 메모가 보이고, 마지막 장에 예상 학생 질문이 있습니다.</p>');
       else {
-        h.push('<ol class="howto"><li><b>읽고 빈칸 채우기</b><span>카드 ' + L.cards.length + "장을 넘기며 빈칸을 눌러 채워 봐.</span></li>");
+        h.push('<ol class="howto"><li><b>읽고 빈칸 채우기</b><span>카드 ' + L.cards.length + "장을 넘기며 읽어 봐.<br>「답 보기」는 눌러서 확인, 숫자 칸은 직접 써 봐.</span></li>");
         h.push("<li><b>헷갈리면 표시하기</b><span>「여기가 헷갈려요」를 눌러 두면 질문 재료가 돼.</span></li>");
         h.push("<li><b>질문 만들고 조 질문 내기</b><span>마지막에 조에서 대표 질문을 골라 한 사람이 내자.</span></li></ol>");
       }
@@ -70,13 +79,15 @@
       var c = L.cards[s.card], i = s.card;
       h.push('<section class="card' + (c.figure ? " has-fig" : "") + '" data-i="' + i + '"><div class="card-head"><span class="pill' + (c.today ? " today" : "") + '">' + esc(c.tag) + "</span>");
       h.push("<h2>" + (i + 1) + ". " + c.title + '</h2><span class="check">✓ 완료</span></div><div class="cbody"><div class="ctext">');
-      c.lines.forEach(function (ln) {
-        h.push("<p>" + ln.replace(/\[\[(\w+)\]\]/g, function (_, k) { return '<button class="blank" data-b="' + k + '"></button>'; }) + "</p>");
-      });
-      if (TEACHER) { if (c.teacherNote) h.push('<div class="tnote">지도 메모 · ' + c.teacherNote + "</div>"); }
-      else if (c.confuse) h.push('<button class="confuse" data-i="' + i + '"><span class="qi">?</span>여기가 헷갈려요</button>');
+      (c.lines || []).forEach(function (ln) { h.push(para(ln)); });
+      if (c.formula) h.push('<div class="formula">' + [].concat(c.formula).map(function (f) { return para(f); }).join("") + "</div>");
+      if (c.after) [].concat(c.after).forEach(function (ln) { h.push(para(ln)); });
+      if (c.example) h.push('<div class="exbox"><span class="exlab">예시</span>' + c.example.map(function (f) { return para(f); }).join("") + "</div>");
+      if (c.note) h.push(para(c.note, "note"));
       h.push("</div>");
       if (c.figure) h.push('<div class="fig">' + c.figure + (c.caption ? '<div class="cap">' + c.caption + "</div>" : "") + "</div>");
+      if (TEACHER) { if (c.teacherNote) h.push('<div class="tnote side">지도 메모 · ' + c.teacherNote + "</div>"); }
+      else if (c.confuse) h.push('<div class="side"><button class="confuse" data-i="' + i + '"><span class="qi">?</span>여기가 헷갈려요</button></div>');
       h.push("</div></section>");
     } else if (s.id === "expect") {
       h.push('<section class="expect"><h2>예상 학생 질문</h2><ol>');
@@ -112,7 +123,7 @@
   app.innerHTML = h.join("");
   document.body.classList.add("slides");
   document.body.insertAdjacentHTML("beforeend",
-    '<div class="sheet-bg" id="sbg"></div><div class="sheet" id="sheet" role="dialog"></div><div class="toast" id="toast"></div>');
+    '<div class="toast" id="toast"></div>');
   math(app);
 
   /* ── 넘기기 ── */
@@ -145,15 +156,14 @@
   $$("#steps button").forEach(function (b) { b.onclick = function () { go(+b.dataset.i); }; });
   $$("[data-go]").forEach(function (b) { b.onclick = function () { go(+b.dataset.go); }; });
   document.addEventListener("keydown", function (e) {
-    if (sheet.classList.contains("open")) { if (e.key === "Escape") closeSheet(); return; }
     var t = e.target.tagName; if (t === "INPUT" || t === "TEXTAREA" || t === "SELECT") return;
     if (e.key === "ArrowRight" || e.key === "PageDown") { e.preventDefault(); go(cur + 1); }
     else if (e.key === "ArrowLeft" || e.key === "PageUp") { e.preventDefault(); go(cur - 1); }
   });
   var sx = 0, sy = 0, tracking = false;
   stage.addEventListener("touchstart", function (e) {
-    if (sheet.classList.contains("open") || e.touches.length > 1) { tracking = false; return; }
-    tracking = !e.target.closest("textarea,input,select,.keys");
+    if (e.touches.length > 1) { tracking = false; return; }
+    tracking = !e.target.closest("textarea,input,select,.numq");
     sx = e.touches[0].clientX; sy = e.touches[0].clientY;
   }, { passive: true });
   stage.addEventListener("touchend", function (e) {
@@ -162,73 +172,61 @@
     if (Math.abs(dx) > 70 && Math.abs(dx) > 1.6 * Math.abs(dy)) go(cur + (dx < 0 ? 1 : -1));
   }, { passive: true });
 
-  /* ── 빈칸 ── */
+  /* ── 빈칸 ──
+     reveal: 수식·용어 → 누르면 답이 보이고, 다시 누르면 숨는다
+     num   : 숫자 → 바로 써서 확인 (정답! / 다시 생각해 보세요.) */
   var BL = {}; L.cards.forEach(function (c, i) { Object.keys(c.blanks || {}).forEach(function (k) { BL[k] = c.blanks[k]; BL[k].card = i; }); });
+  function toNum(v) {
+    v = String(v).replace(/\s+/g, "").replace(/[−–—]/g, "-");
+    var m = v.match(/^(-?)(\d+(?:\.\d+)?)\/(\d+(?:\.\d+)?)$/);
+    if (m) return (m[1] ? -1 : 1) * parseFloat(m[2]) / parseFloat(m[3]);
+    return /^-?\d+(\.\d+)?$|^-?\.\d+$/.test(v) ? parseFloat(v) : NaN;
+  }
+  function pulseConfuse(i) { var cb = $('.confuse[data-i="' + i + '"]'); if (cb && !cb.classList.contains("on")) { cb.classList.remove("pulse"); void cb.offsetWidth; cb.classList.add("pulse"); } }
   function paintBlank(k) {
-    var el = $('.blank[data-b="' + k + '"]'), b = BL[k], s = st.blanks[k] || {};
-    el.className = "blank"; el.innerHTML = "";
-    if (TEACHER) { el.classList.add("teacher"); el.innerHTML = b.show; }
-    else if (s.s === "ok") { el.classList.add("ok"); el.innerHTML = b.show; }
-    else if (s.s === "shown") { el.classList.add("shown"); el.innerHTML = b.show; }
-    else el.classList.add("empty");
-    math(el);
+    var el = $('.bk[data-b="' + k + '"]'), b = BL[k], s = st.blanks[k] || {};
+    if (b.type === "reveal") {
+      var open = TEACHER || s.open;
+      el.className = "bk rv" + (open ? " open" : "") + (TEACHER ? " teacher" : "");
+      el.innerHTML = '<button type="button" class="rvb" aria-pressed="' + (open ? "true" : "false") + '">' +
+        (open ? '<span class="ans">' + b.show + "</span>" : '<span class="peek">답 보기</span>') + "</button>";
+      math(el);
+      if (!TEACHER) $(".rvb", el).onclick = function () {
+        var cur = st.blanks[k] || {}; cur.open = !cur.open; cur.s = "seen"; st.blanks[k] = cur; save(); paintBlank(k); paintCards();
+      };
+      return;
+    }
+    // num
+    if (TEACHER || s.s === "ok" || s.s === "shown") {
+      el.className = "bk num " + (TEACHER ? "teacher" : s.s);
+      el.innerHTML = '<span class="ans">' + b.show + "</span>" + (s.s === "ok" && !TEACHER ? '<span class="fb good">정답!</span>' : "");
+      math(el); return;
+    }
+    el.className = "bk num";
+    el.innerHTML = '<span class="numq"><input type="text" inputmode="decimal" autocomplete="off" aria-label="답" placeholder="?">' +
+      '<button type="button" class="neg" title="음수 부호">−</button><button type="button" class="chk">확인</button></span>' +
+      '<span class="fb"></span>';
+    var inp = $("input", el), fb = $(".fb", el);
+    $(".neg", el).onclick = function () { var v = inp.value.trim(); inp.value = /^[-−]/.test(v) ? v.replace(/^[-−]\s*/, "") : "−" + v; inp.focus(); };
+    function check() {
+      var v = toNum(inp.value), cur = st.blanks[k] || { t: 0 };
+      if (isNaN(v)) { fb.className = "fb bad"; fb.textContent = "숫자로 써 주세요."; return; }
+      if (b.answer.some(function (a) { return Math.abs(toNum(a) - v) < 1e-9; })) {
+        st.blanks[k] = { s: "ok", t: cur.t || 0 }; save(); paintBlank(k); paintCards(); return;
+      }
+      cur.t = (cur.t || 0) + 1; st.blanks[k] = cur; save();
+      fb.className = "fb bad";
+      fb.innerHTML = "다시 생각해 보세요." + (b.hint ? '<span class="hint">힌트: ' + b.hint + "</span>" : "") +
+        (cur.t >= 2 ? '<button type="button" class="giveup">답 보기</button>' : "");
+      math(fb);
+      var g = $(".giveup", fb); if (g) g.onclick = function () { st.blanks[k] = { s: "shown", t: cur.t }; save(); paintBlank(k); paintCards(); pulseConfuse(b.card); };
+      inp.select();
+    }
+    $(".chk", el).onclick = check;
+    inp.addEventListener("keydown", function (e) { if (e.key === "Enter") { e.preventDefault(); check(); } });
   }
   function paintCards() { L.cards.forEach(function (c, i) { $('.card[data-i="' + i + '"]').classList.toggle("done", !TEACHER && cardDone(i)); }); paintSteps(); }
   Object.keys(BL).forEach(paintBlank); paintCards();
-
-  var sheet = $("#sheet"), sbg = $("#sbg"), curK = null, choice = null;
-  function closeSheet() { sheet.classList.remove("open"); sbg.style.display = "none"; curK = null; }
-  sbg.onclick = closeSheet;
-  function openSheet(k) {
-    curK = k; choice = null;
-    var b = BL[k], s = st.blanks[k] || { t: 0 };
-    var p = $('.blank[data-b="' + k + '"]').parentNode.cloneNode(true);
-    $$(".blank", p).forEach(function (x) {
-      var sp = document.createElement("span");
-      if (x.getAttribute("data-b") === k) { sp.className = "hole"; sp.textContent = "?"; }
-      else { sp.innerHTML = x.innerHTML || "□"; }
-      x.parentNode.replaceChild(sp, x);
-    });
-    var hh = '<div class="ctx">' + p.innerHTML + "</div>";
-    if (b.type === "choice") {
-      hh += '<div class="opts">' + b.options.map(function (o, j) { return '<button data-j="' + j + '">' + o + "</button>"; }).join("") + "</div>";
-    } else {
-      hh += '<input id="inp" autocomplete="off" autocapitalize="off" spellcheck="false" placeholder="답을 써 봐 (예: ' + esc(b.placeholder || "3x²") + ')">';
-      hh += '<div class="keys">' + [["x", "x"], ["²", "□²"], ["³", "□³"], ["+", "+"], ["-", "−"]].map(function (t) { return '<button data-t="' + t[0] + '">' + t[1] + "</button>"; }).join("") + "</div>";
-    }
-    hh += '<div class="msg" id="msg">' + (s.t ? '<span class="bad">힌트: ' + b.hint + "</span>" : "") + "</div>";
-    hh += '<div class="btns"><button class="btn sec" id="dunno">모르겠어요</button><button class="btn pri" id="ok">확인</button></div>';
-    sheet.innerHTML = hh; math(sheet);
-    sbg.style.display = "block"; requestAnimationFrame(function () { sheet.classList.add("open"); });
-    $$(".opts button", sheet).forEach(function (bt) { bt.onclick = function () { $$(".opts button", sheet).forEach(function (x) { x.classList.remove("sel"); }); bt.classList.add("sel"); choice = +bt.dataset.j; }; });
-    $$(".keys button", sheet).forEach(function (bt) { bt.onclick = function () { var i = $("#inp"); i.value += bt.dataset.t; i.focus(); }; });
-    var inp = $("#inp"); if (inp) { inp.addEventListener("keydown", function (e) { if (e.key === "Enter") check(); }); setTimeout(function () { inp.focus(); }, 250); }
-    $("#ok").onclick = check;
-    $("#dunno").onclick = function () { reveal(k, true); };
-  }
-  function check() {
-    var k = curK, b = BL[k], s = st.blanks[k] || { t: 0 }, right;
-    if (b.type === "choice") { if (choice == null) { $("#msg").innerHTML = '<span class="bad">하나를 골라 줘.</span>'; return; } right = choice === b.answer; }
-    else { var v = norm($("#inp").value); if (!v) { $("#msg").innerHTML = '<span class="bad">답을 써 줘.</span>'; return; } right = b.answer.some(function (a) { return norm(a) === v; }); }
-    if (right) {
-      st.blanks[k] = { s: "ok", t: s.t }; save(); paintBlank(k); paintCards();
-      $("#msg").innerHTML = '<span class="good">맞았어!</span>'; setTimeout(closeSheet, 450);
-    } else {
-      s.t = (s.t || 0) + 1; st.blanks[k] = s; save();
-      if (s.t >= 2) reveal(k, false);
-      else { $("#msg").innerHTML = '<span class="bad">다시 생각해 보자. 힌트: ' + b.hint + "</span>"; math($("#msg")); }
-    }
-  }
-  function reveal(k, dunno) {
-    var s = st.blanks[k] || { t: 0 };
-    st.blanks[k] = { s: "shown", t: s.t, d: !!dunno }; save(); paintBlank(k); paintCards();
-    $("#msg").innerHTML = '<span class="bad">정답은 ' + BL[k].show + " 이야. 헷갈렸다면 질문으로 만들어 보자!</span>"; math($("#msg"));
-    var cb = $('.confuse[data-i="' + BL[k].card + '"]'); if (cb && !cb.classList.contains("on")) { cb.classList.remove("pulse"); void cb.offsetWidth; cb.classList.add("pulse"); }
-    setTimeout(closeSheet, 1600);
-  }
-  if (!TEACHER) $$(".blank").forEach(function (el) {
-    el.onclick = function () { var s = st.blanks[el.dataset.b]; if (s && (s.s === "ok" || s.s === "shown")) return; openSheet(el.dataset.b); };
-  });
 
   if (TEACHER) { go(0); return; }
 
