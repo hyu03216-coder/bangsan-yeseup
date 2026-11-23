@@ -82,13 +82,14 @@
 
   /* ── 그리기 ── */
   function visible() { return S.rows.filter(function (r) { return S.hid || r.status !== "hidden"; }); }
-  function sortQ(a, b) { return a.group - b.group || a.order - b.order; }
+  function sortQ(a, b) { return a.group - b.group || (b.pick ? 1 : 0) - (a.pick ? 1 : 0) || a.order - b.order || (a.time < b.time ? -1 : a.time > b.time ? 1 : 0); }
   function qHTML(r, opt) {
     opt = opt || {};
-    var h = '<div class="q' + (r.star ? " star" : "") + (r.status === "hidden" ? " hidden" : "") + (S.picked[r.id] ? " sel" : "") + '" data-id="' + esc(r.id) + '"' + (opt.drag ? ' draggable="true"' : "") + ">";
+    var h = '<div class="q' + (r.star ? " star" : "") + (r.pick ? " pick" : "") + (r.status === "hidden" ? " hidden" : "") + (S.picked[r.id] ? " sel" : "") + '" data-id="' + esc(r.id) + '"' + (opt.drag ? ' draggable="true"' : "") + ">";
     if (S.sel) h += '<input type="checkbox" class="ck"' + (S.picked[r.id] ? " checked" : "") + ">";
     h += '<div class="qt">' + esc(r.text) + "</div><div class=\"qm\">";
     if (opt.who) h += '<span class="who">' + r.group + "조</span>";
+    if (r.pick) h += '<span class="pk">조 대표</span>';
     if (r.cluster) h += '<span class="cl">묶음 ' + esc(r.cluster) + "</span>";
     h += '<select class="tagsel"><option value="">분류 없음</option>' + S.tags.map(function (t) { return '<option' + (t === r.tag ? " selected" : "") + ">" + esc(t) + "</option>"; }).join("") +
       (r.tag && S.tags.indexOf(r.tag) < 0 ? '<option selected>' + esc(r.tag) + "</option>" : "") + "</select>";
@@ -99,12 +100,13 @@
   }
   function paintStatus() {
     var rows = S.rows.filter(function (r) { return r.status !== "hidden"; });
-    var h = '<span class="lb">제출한 조</span>', n = 0;
+    var h = '<span class="lb">조별 질문</span>', n = 0, pk = 0;
     for (var g = 1; g <= G; g++) {
-      var c = rows.filter(function (r) { return r.group === g; }).length; if (c) n++;
-      h += '<span class="gs' + (c ? " on" : "") + '">' + g + "조" + (c ? " " + c : "") + "</span>";
+      var gr = rows.filter(function (r) { return r.group === g; }), c = gr.length, p = gr.some(function (r) { return r.pick; });
+      if (c) n++; if (p) pk++;
+      h += '<span class="gs' + (c ? " on" : "") + (p ? " pk" : "") + '" title="' + (p ? "대표 고름" : "") + '">' + g + "조" + (c ? " " + c + "명" : "") + (p ? " ★" : "") + "</span>";
     }
-    h += '<span class="sum">' + n + " / " + G + "조 · 질문 " + rows.length + "개 · ★ " + rows.filter(function (r) { return r.star; }).length + "개</span>";
+    h += '<span class="sum">' + n + " / " + G + "조 · 질문 " + rows.length + "개 · 조 대표 " + pk + "조 · ★ " + rows.filter(function (r) { return r.star; }).length + "개</span>";
     $("#status").innerHTML = h;
   }
   function render() {
@@ -115,7 +117,7 @@
       for (var g = 1; g <= G; g++) {
         var gr = rows.filter(function (r) { return r.group === g; }).sort(sortQ);
         var tm = gr.length ? new Date(gr[0].time) : null;
-        h += '<section class="gcard' + (gr.length ? "" : " none") + '"><h2><span class="gn">' + g + "조</span>" + (gr.length ? gr.length + "개" : "") +
+        h += '<section class="gcard' + (gr.length ? "" : " none") + '"><h2><span class="gn">' + g + "조</span>" + (gr.length ? gr.length + "명" : "") +
           (tm && !isNaN(tm) ? '<span class="tm">' + (tm.getMonth() + 1) + "/" + tm.getDate() + " " + String(tm.getHours()).padStart(2, "0") + ":" + String(tm.getMinutes()).padStart(2, "0") + "</span>" : "") + "</h2>";
         h += gr.length ? gr.map(function (r) { return qHTML(r); }).join("") : '<div class="nothing">아직 내지 않았습니다.</div>';
         h += "</section>";
@@ -142,6 +144,11 @@
         h += "</section>";
       });
       h += "</div>";
+    } else if (S.view === "pick") {
+      var pr = rows.filter(function (r) { return r.pick; }).sort(sortQ);
+      S.zoomList = pr;
+      h = pr.length ? '<div class="starlist" style="max-width:900px">' + pr.map(function (r) { return qHTML(r, { who: 1 }); }).join("") + "</div>"
+        : '<div class="empty">조에서 대표 질문을 고르면 여기에 모입니다.</div>';
     } else {
       var sr = rows.filter(function (r) { return r.star; }).sort(sortQ);
       S.zoomList = sr;
@@ -206,7 +213,7 @@
   }
   function paintZoom() {
     var r = S.zoomList[S.zi]; if (!r) return; r = byId(r.id) || r;
-    $("#zg").textContent = r.group + "조";
+    $("#zg").textContent = r.group + "조" + (r.pick ? " · 조 대표" : "");
     $("#zi").textContent = (S.zi + 1) + " / " + S.zoomList.length + (r.cluster ? " · 묶음 " + r.cluster : "");
     $("#zt").textContent = r.text;
     $("#ztools").innerHTML = S.tags.map(function (t) { return '<button class="zt' + (r.tag === t ? " on" : "") + '">' + esc(t) + "</button>"; }).join("") +
@@ -257,15 +264,15 @@
   };
 
   /* ── 체험 모드 ── */
+  var SEED = {
+    A9: [[1, "왜 x축 아래에 있으면 정적분이 −S일까?", 1], [1, "정적분과 넓이는 무엇이 다를까?"], [2, "왜 S₁+S₂가 아니라 S₁−S₂일까?", 1],
+      [3, "만약 S₁과 S₂가 같으면 정적분은 어떻게 될까?"], [3, "y=x²처럼 곡선 아래 넓이는 어떻게 구할 수 있을까?", 1], [4, "왜 위끝과 아래끝을 바꾸면 부호가 바뀔까?"]],
+    A10: [[1, "왜 적분상수 C를 꼭 붙여야 할까?", 1], [1, "미분하면 2x가 되는 함수는 몇 개일까?"], [1, "C는 아무 수나 넣어도 될까?"],
+      [2, "왜 지수를 1 올리고 그 수로 나눌까?"], [2, "만약 n=−1이면 공식이 될까?", 1], [3, "부정적분과 정적분은 무엇이 다를까?", 1],
+      [3, "곡선 y=x² 아래의 넓이 S는 어떻게 구할 수 있을까?"], [4, "적분상수를 하나의 C로 모아 써도 되는 이유는?"], [5, "(x−1)³처럼 괄호가 있는 식은 어떻게 적분할까?", 1]]
+  };
   $("#seed").onclick = function () {
-    Api.seedDemo(S.lesson || "A9", [
-      [1, ["왜 x축 아래에 있으면 정적분이 −S일까?", "정적분과 넓이는 무엇이 다를까?"]],
-      [2, ["왜 S₁+S₂가 아니라 S₁−S₂일까?"]],
-      [3, ["만약 S₁과 S₂가 같으면 정적분은 어떻게 될까?", "y=x²처럼 곡선 아래 넓이는 어떻게 구할 수 있을까?"]],
-      [4, ["왜 위끝과 아래끝을 바꾸면 부호가 바뀔까?"]],
-      [5, ["왜 정적분을 넓이로 정의할까?", "∫₁¹ x² dx가 0인 이유는 넓이가 없어서일까?", "색칠한 부분 전체의 넓이는 어떻게 구할 수 있을까?"]],
-      [7, ["넓이를 구하라는 문제와 정적분 값을 구하라는 문제는 어떻게 다를까?"]]
-    ]);
+    Api.seedDemo(S.lesson || "A10", SEED[S.lesson] || SEED.A10);
     load(); toast("예시 질문을 넣었습니다");
   };
   $("#clear").onclick = function () { if (confirm("체험 모드 질문을 모두 지울까요?")) { Api.clearDemo(); load(); } };

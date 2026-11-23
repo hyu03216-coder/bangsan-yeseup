@@ -1,5 +1,5 @@
 /* 예습 플랫폼 — 차시 예습 화면 엔진
-   한 장씩 넘기기: 시작 → 카드들 → 질문 만들기 → 조 질문 내기 (교사 보기: 시작 → 카드들 → 예상 질문)
+   한 장씩 넘기기: 시작 → 카드들 → 내 질문 내기 → 조별 질문 보기(조 대표 고르기) (교사 보기: 시작 → 카드들 → 예상 질문)
    카드 안은 '한 줄씩 드러내기': 「다음 줄」(또는 카드 누르기, →키, 밀기)마다 한 줄이 열린다.
    - 빈칸이 있는 줄은 빈칸을 확인해야 다음 줄이 열린다(관문).
    - 그림은 줄에 붙은 fig 단계까지 차례로 그려진다(<g data-l="n">).
@@ -19,10 +19,10 @@
   ];
 
   var st = load() || {};
-  st.blanks = st.blanks || {}; st.mine = st.mine || []; st.rev = st.rev || {};
+  st.blanks = st.blanks || {}; st.rev = st.rev || {};
   st.confuse = (st.confuse || []).filter(function (x) { return typeof x === "string"; });
   if (typeof st.active !== "string") st.active = null;
-  st.gq = st.gq || ["", "", ""];
+  var onSlide = null;
   function load() { try { return JSON.parse(localStorage.getItem(SKEY)); } catch (e) { return null; } }
   function save() { if (TEACHER) return; try { localStorage.setItem(SKEY, JSON.stringify(st)); } catch (e) {} }
 
@@ -61,7 +61,7 @@
   var SL = [{ id: "intro", chip: "시작", name: "시작하기" }];
   L.cards.forEach(function (c, i) { SL.push({ id: "c" + i, chip: String(i + 1), name: (i + 1) + ". " + c.title, card: i }); });
   if (TEACHER) SL.push({ id: "expect", chip: "예상", name: "예상 학생 질문" });
-  else { SL.push({ id: "q", chip: "질문", name: "질문 만들기" }); SL.push({ id: "send", chip: "내기", name: "조 질문 내기" }); }
+  else { SL.push({ id: "send", chip: "질문", name: "내 질문 내기" }); SL.push({ id: "board", chip: "조 보기", name: "조별 질문 보기" }); }
   function idx(id) { for (var i = 0; i < SL.length; i++) if (SL[i].id === id) return i; return 0; }
 
   /* ── 화면 그리기 ── */
@@ -88,14 +88,16 @@
       else {
         h.push('<ol class="howto"><li><b>한 줄씩 읽기</b><span>「다음 줄」을 누를 때마다<br>한 줄씩 나와. 천천히 읽어 봐.</span></li>');
         h.push("<li><b>빈칸 확인하기</b><span>「답 보기」는 눌러서 확인,<br>숫자 칸은 직접 써 봐.</span></li>");
-        h.push("<li><b>헷갈린 줄에 ?</b><span>줄 끝의 ?를 누르면 질문 재료가 돼.<br>마지막에 조 질문으로 내자.</span></li></ol>");
+        h.push("<li><b>헷갈린 줄에 ?</b><span>줄 끝의 ?를 누르면 질문 재료가 돼.<br>내 질문을 내고, 조에서 하나를 골라.</span></li></ol>");
       }
       h.push('<button class="btn pri big" data-go="1">시작하기 →</button>');
+      if (!TEACHER) h.push('<div><button type="button" class="reset all" id="resetAll">↺ 이 차시 처음부터 다시</button></div>');
       h.push('<p class="tip">「다음 줄」 단추, 카드 빈 곳 누르기, 키보드 →, 손가락으로 밀기 모두 돼.</p></div>');
     } else if (s.card != null) {
       var c = L.cards[s.card], i = s.card, seq = seqOf(i);
       h.push('<section class="card' + (c.figure ? " has-fig" : "") + '" data-i="' + i + '"><div class="card-head"><span class="pill' + (c.today ? " today" : "") + '">' + esc(c.tag) + "</span>");
-      h.push("<h2>" + (i + 1) + ". " + c.title + '</h2><span class="check">✓ 완료</span></div><div class="cbody"><div class="ctext">');
+      h.push("<h2>" + (i + 1) + ". " + c.title + '</h2><span class="check">✓ 완료</span>' +
+        (TEACHER ? "" : '<button type="button" class="reset" data-reset="' + i + '" title="이 카드를 첫 줄부터 다시">↺ 다시</button>') + '</div><div class="cbody"><div class="ctext">');
       var j = 0;
       while (j < seq.length) {
         var kd = kindOf(seq[j]);
@@ -116,24 +118,22 @@
         var f = FRAMES.filter(function (x) { return x.k === e.frame; })[0];
         h.push('<li><span class="ft">' + (f ? f.text.replace(/___/g, "○") : "") + "</span>" + e.q + (e.link ? '<span class="lk">→ ' + e.link + "</span>" : "") + "</li>");
       });
-      h.push('</ol><p class="lead" style="margin:10px 0 0">학생들이 낸 조 질문은 <a href="../teacher.html">교사 화면</a>에서 모아 봅니다.</p></section>');
-    } else if (s.id === "q") {
-      h.push('<section class="qbox" id="qbox"><h2>질문 만들기</h2><p class="lead">헷갈린 줄을 질문으로 바꿔 보자. 질문틀을 고르면 문장이 시작돼.</p><div class="two">');
-      h.push('<div><div class="step">1. 헷갈린 곳 고르기</div><div class="chips" id="cchips"></div>');
-      h.push('<div class="step">2. 질문틀 고르기</div><div class="frames">');
-      FRAMES.forEach(function (f) { h.push('<button data-k="' + f.k + '">' + f.label + "</button>"); });
-      h.push("</div></div><div>");
-      h.push('<div class="step">3. 내 말로 고쳐 쓰기</div><textarea id="draft" placeholder="여기에 질문을 써 보자"></textarea>');
-      h.push('<button class="btn gold wide" id="addMine">내 질문에 담기</button><ol class="mine" id="mine"></ol>');
-      if (L.example) h.push('<details class="ex"><summary>좋은 질문 예시 보기</summary>' + L.example + "</details>");
-      h.push("</div></div></section>");
+      h.push('</ol><p class="lead" style="margin:10px 0 0">학생들이 낸 질문(조 대표 포함)은 <a href="../teacher.html">교사 화면</a>에서 모아 봅니다.</p></section>');
     } else if (s.id === "send") {
-      h.push('<section class="send" id="send"><h2>조 질문 내기</h2><p class="lead">조에서 내 질문을 서로 보여 주고, 대표 질문을 1~' + MAXQ + "개 골라 <b>한 사람만</b> 내자.</p><div class=\"two\">");
-      h.push('<div><div class="step navy">우리 조</div><div class="groups" id="groups">');
+      h.push('<section class="send" id="send"><h2>내 질문 내기</h2><p class="lead">우리 조를 고르고, 헷갈린 곳을 <b>내 질문 하나</b>로 써서 내자.</p><div class="two">');
+      h.push('<div><div class="step navy">1. 우리 조</div><div class="groups" id="groups">');
       for (var g = 1; g <= (C.GROUPS || 9); g++) h.push('<button data-g="' + g + '">' + g + "조</button>");
-      h.push('</div><div id="now"></div></div><div><div id="gqs"></div>');
-      h.push('<div class="btns"><button class="btn sec" id="loadMine">내 질문 불러오기</button><button class="btn pri" id="submit">조 질문 내기</button></div>');
-      h.push('<div id="result"></div>' + (window.Api && Api.demo ? '<div class="demo">체험 모드: 아직 선생님 시트와 연결되지 않아 이 기기에만 저장돼.</div>' : "") + "</div></div></section>");
+      h.push('</div><div class="step">2. 헷갈린 곳 고르기 <span class="sub">(카드 줄 끝 「?」)</span></div><div class="chips" id="cchips"></div>');
+      h.push('<div class="step">3. 질문틀 고르기</div><div class="frames sm">');
+      FRAMES.forEach(function (f) { h.push('<button data-k="' + f.k + '">' + f.label + "</button>"); });
+      h.push('</div></div><div><div class="step">4. 내 말로 고쳐 쓰기</div><textarea id="draft" placeholder="여기에 내 질문을 써 보자"></textarea>');
+      h.push('<button class="btn pri wide" id="submit">내 질문 내기</button><div id="result"></div>');
+      if (L.example) h.push('<details class="ex"><summary>좋은 질문 예시 보기</summary>' + L.example + "</details>");
+      h.push((window.Api && Api.demo ? '<div class="demo">체험 모드: 아직 선생님 시트와 연결되지 않아 이 기기에만 저장돼.</div>' : "") + "</div></div></section>");
+    } else if (s.id === "board") {
+      h.push('<section class="board" id="boardSec"><div class="bhead"><div><h2>조별 질문 보기</h2><p class="lead" id="bguide"></p></div>');
+      h.push('<button class="btn sec" id="bref">새로고침</button></div><div class="bgrid" id="bgrid"></div>');
+      h.push("</section>");
     }
     h.push("</div></section>");
   });
@@ -202,8 +202,8 @@
     $$("#steps button").forEach(function (b, i) {
       var s = SL[i], done = false;
       if (s.card != null) done = TEACHER || cardDone(s.card);
-      else if (s.id === "q") done = st.mine.length > 0;
       else if (s.id === "send") done = !!st.submitted;
+      else if (s.id === "board") done = !!st.picked;
       b.classList.toggle("done", done); b.classList.toggle("cur", i === cur);
     });
   }
@@ -234,7 +234,7 @@
     slides.forEach(function (sl, j) { sl.inert = j !== i; sl.setAttribute("aria-hidden", j !== i ? "true" : "false"); });
     paintNav(); paintSteps();
     if (SL[i].card != null) setTimeout(function () { scrollToCur(SL[i].card); }, 380);
-    if (SL[i].id === "send") showNow();
+    if (onSlide) onSlide(SL[i].id);
   }
   // 입력칸에 초점이 갈 때 브라우저가 무대를 옆으로 밀지 않게
   stage.addEventListener("scroll", function () { if (stage.scrollLeft) stage.scrollLeft = 0; });
@@ -332,6 +332,34 @@
   Object.keys(BL).forEach(paintBlank);
   L.cards.forEach(function (_, i) { paintCard(i); });
 
+  /* ── 초기화: 카드별 「↺ 다시」, 시작 장의 「이 차시 처음부터 다시」 (두 번 눌러야 됨) ──
+     이 기기의 읽기·빈칸·? 기록만 지운다. 이미 낸 질문은 지우지 않는다. */
+  function armed(b, msg, fn) {
+    if (b.classList.contains("arm")) { clearTimeout(b._t); b.classList.remove("arm"); b.textContent = b._txt; fn(); return; }
+    b._txt = b.textContent; b.classList.add("arm"); b.textContent = msg;
+    b._t = setTimeout(function () { b.classList.remove("arm"); b.textContent = b._txt; }, 3000);
+  }
+  function resetCard(i) {
+    Object.keys(BL).forEach(function (k) { if (BL[k].card === i) { delete st.blanks[k]; paintBlank(k); } });
+    st.rev[i] = 1;
+    st.confuse = st.confuse.filter(function (k) { return +k.split("-")[0] !== i; });
+    if (st.active && +st.active.split("-")[0] === i) st.active = null;
+    save(); paintCard(i); if (window.__paintConfuse) window.__paintConfuse();
+  }
+  $$("[data-reset]").forEach(function (b) {
+    b.onclick = function (e) {
+      e.stopPropagation(); var i = +b.dataset.reset;
+      armed(b, "한 번 더 누르면 지워져", function () { resetCard(i); paintNav(); paintSteps(); toast((i + 1) + "번 카드를 처음부터 다시 해."); });
+    };
+  });
+  var ra = $("#resetAll");
+  if (ra) ra.onclick = function () {
+    armed(ra, "한 번 더 누르면 이 차시 기록이 모두 지워져", function () {
+      try { localStorage.removeItem(SKEY); } catch (e) {}
+      location.reload();
+    });
+  };
+
   if (TEACHER) { go(0); return; }
 
   /* ── 줄 끝 ? → 질문 재료 ── */
@@ -357,13 +385,21 @@
       e.stopPropagation();
       var key = b.dataset.k, at = st.confuse.indexOf(key);
       if (at >= 0) { st.confuse.splice(at, 1); if (st.active === key) st.active = null; toast("질문 재료에서 뺐어"); }
-      else { st.confuse.push(key); st.active = key; toast("이 줄을 질문 재료로 담았어", "질문 만들러 가기", function () { go(idx("q")); }); }
+      else { st.confuse.push(key); st.active = key; toast("이 줄을 질문 재료로 담았어", "질문 내러 가기", function () { go(idx("send")); }); }
       b.classList.remove("pulse");
       save(); paintConfuse();
     };
   });
   paintConfuse();
+  window.__paintConfuse = paintConfuse;
 
+  /* ── 내 질문 내기: 조 고르기 → 질문틀 → 고쳐 쓰기 → 내기 (한 사람에 하나, 다시 내면 바뀜) ── */
+  var DKEY = "yeseup_device";
+  function device() {
+    var d = null; try { d = localStorage.getItem(DKEY); } catch (e) {}
+    if (!d) { d = "d" + Math.random().toString(36).slice(2, 12) + Date.now().toString(36); try { localStorage.setItem(DKEY, d); } catch (e) {} }
+    return d;
+  }
   var draft = $("#draft"), lastTpl = "";
   draft.value = st.draft || "";
   draft.oninput = function () { st.draft = draft.value; save(); };
@@ -371,75 +407,91 @@
     b.onclick = function () {
       var k = b.dataset.k, f = FRAMES.filter(function (x) { return x.k === k; })[0];
       var t = (st.active && framesOf(st.active)[k]) || f.text;
-      if (draft.value.trim() && draft.value !== lastTpl && !confirm("지금 쓴 문장을 질문틀 문장으로 바꿀까?")) return;
       draft.value = t; lastTpl = t; st.draft = t; save();
       $$(".frames button").forEach(function (x) { x.classList.toggle("sel", x === b); });
       draft.focus();
       var u = t.indexOf("___"); if (u >= 0 && draft.setSelectionRange) draft.setSelectionRange(u, u + 3);
     };
   });
-  function paintMine() {
-    $("#mine").innerHTML = st.mine.map(function (q, j) { return '<li><span class="n">Q' + (j + 1) + '</span><span>' + esc(q) + '</span><button class="x" data-j="' + j + '">지우기</button></li>'; }).join("");
-    $$("#mine .x").forEach(function (b) { b.onclick = function () { st.mine.splice(+b.dataset.j, 1); save(); paintMine(); paintSteps(); }; });
-  }
-  $("#addMine").onclick = function () {
-    var v = draft.value.trim();
-    if (!v) { toast("질문을 먼저 써 줘"); return; }
-    if (/___/.test(v)) { toast("___ 자리를 내 말로 채워 줘"); return; }
-    if (st.mine.length >= MAXQ) { toast("내 질문은 " + MAXQ + "개까지야. 하나 지우고 담자"); return; }
-    st.mine.push(v); draft.value = ""; lastTpl = ""; st.draft = ""; save(); paintMine(); paintSteps();
-    $$(".frames button").forEach(function (x) { x.classList.remove("sel"); });
-    toast("내 질문 " + st.mine.length + "개 담았어", "조 질문 내기로", function () { go(idx("send")); });
-  };
-  paintMine();
-
-  /* ── 조 질문 내기 ── */
-  var gqs = $("#gqs");
-  gqs.innerHTML = Array.apply(null, Array(MAXQ)).map(function (_, j) {
-    return '<div class="gq"><label>대표 질문 ' + (j + 1) + (j ? " (선택)" : "") + '</label><textarea data-j="' + j + '" placeholder="' + (j ? "더 있으면 써 줘" : "조에서 고른 질문") + '"></textarea></div>';
-  }).join("");
-  $$("#gqs textarea").forEach(function (t) { t.value = st.gq[+t.dataset.j] || ""; t.oninput = function () { st.gq[+t.dataset.j] = t.value; save(); }; });
   function paintGroups() { $$("#groups button").forEach(function (b) { b.classList.toggle("sel", +b.dataset.g === st.group); }); }
-  function showNow() {
-    var box = $("#now"); if (!box) return; if (!st.group) { box.innerHTML = '<div class="now">우리 조 번호를 눌러 줘.</div>'; return; }
-    box.innerHTML = '<div class="now">' + st.group + "조 질문 확인 중…</div>";
-    Api.group(L.id, st.group).then(function (r) {
-      if (!r.ok) throw new Error(r.error);
-      box.innerHTML = '<div class="now">' + (r.rows.length
-        ? "<b>" + st.group + "조가 이미 낸 질문</b> (다시 내면 이걸로 바뀌어)<ol>" + r.rows.map(function (x) { return "<li>" + esc(x.text) + "</li>"; }).join("") + "</ol>"
-        : st.group + "조는 아직 질문을 내지 않았어.") + "</div>";
-    }).catch(function () { box.innerHTML = '<div class="now">' + st.group + "조 질문을 불러오지 못했어. 그래도 낼 수 있어.</div>"; });
-  }
-  $$("#groups button").forEach(function (b) { b.onclick = function () { st.group = +b.dataset.g; save(); paintGroups(); showNow(); }; });
+  $$("#groups button").forEach(function (b) { b.onclick = function () { st.group = +b.dataset.g; save(); paintGroups(); }; });
   paintGroups();
-  $("#loadMine").onclick = function () {
-    if (!st.mine.length) { toast("먼저 '질문 만들기'에서 내 질문을 담아 줘"); return; }
-    $$("#gqs textarea").forEach(function (t) { var j = +t.dataset.j; if (!t.value.trim() && st.mine[j]) { t.value = st.mine[j]; st.gq[j] = t.value; } });
-    save();
-  };
+  function paintSent() {
+    var res = $("#result");
+    if (st.submitted && st.mytext) res.innerHTML = '<div class="done-box"><b>' + st.group + "조로 질문을 냈어!</b><br>" + esc(st.mytext) +
+      '<div style="margin-top:6px;font-size:.85rem;color:var(--sub)">고쳐서 다시 내면 이 질문이 바뀌어.</div><button class="btn sec" id="toBoard" style="margin-top:8px;width:100%">조별 질문 보러 가기 →</button></div>';
+    else res.innerHTML = "";
+    var tb = $("#toBoard"); if (tb) tb.onclick = function () { go(idx("board")); };
+  }
+  paintSent();
   function copyText(s) {
     if (navigator.clipboard && navigator.clipboard.writeText) return navigator.clipboard.writeText(s);
     var t = document.createElement("textarea"); t.value = s; document.body.appendChild(t); t.select();
     try { document.execCommand("copy"); } catch (e) {} document.body.removeChild(t); return Promise.resolve();
   }
   $("#submit").onclick = function () {
-    var qs = $$("#gqs textarea").map(function (t) { return t.value.trim(); }).filter(Boolean);
-    var res = $("#result");
+    var q = draft.value.trim(), res = $("#result");
     if (!st.group) { toast("우리 조를 먼저 골라 줘"); return; }
-    if (!qs.length) { toast("대표 질문을 하나 이상 써 줘"); return; }
-    if (qs.some(function (q) { return /___/.test(q); })) { toast("___ 자리를 채워 줘"); return; }
+    if (!q) { toast("질문을 먼저 써 줘"); return; }
+    if (/___/.test(q)) { toast("___ 자리를 내 말로 채워 줘"); return; }
     var btn = this; btn.disabled = true; btn.textContent = "보내는 중…";
-    var text = L.id + " " + st.group + "조 질문\n" + qs.map(function (q, j) { return (j + 1) + ". " + q; }).join("\n");
-    Api.submit(L.id, st.group, qs).then(function (r) {
+    Api.submitOne(L.id, st.group, device(), q).then(function (r) {
       if (!r.ok) throw new Error(r.error || "저장 실패");
-      st.submitted = true; save(); paintSteps();
-      res.innerHTML = '<div class="done-box"><b>' + st.group + "조 질문이 들어갔어!</b><br>수업 시간에 이 질문으로 시작해.</div>";
-      showNow();
+      st.submitted = true; st.mytext = q; st.myid = r.id; st.draft = ""; draft.value = ""; save(); paintSteps(); paintSent();
+      $$(".frames button").forEach(function (x) { x.classList.remove("sel"); });
+      toast("질문을 냈어!", "조별 질문 보기", function () { go(idx("board")); });
     }).catch(function (e) {
       res.innerHTML = '<div class="err-box">보내지 못했어 (' + esc(e.message || e) + '). 아래 단추로 복사해서 선생님께 보내 줘.<div class="btns" style="margin-top:8px"><button class="btn sec" id="cp">질문 복사하기</button></div></div>';
-      $("#cp").onclick = function () { copyText(text).then(function () { toast("복사했어"); }); };
-    }).then(function () { btn.disabled = false; btn.textContent = "조 질문 내기"; });
+      $("#cp").onclick = function () { copyText(L.id + " " + st.group + "조 질문: " + q).then(function () { toast("복사했어"); }); };
+    }).then(function () { btn.disabled = false; btn.textContent = "내 질문 내기"; });
   };
 
+  /* ── 조별 질문 보기: 교사 화면처럼 조별로 모아 보고, 우리 조 대표 질문 하나 고르기 ── */
+  var brows = [], btimer = null, bbusy = false;
+  function bguide() {
+    $("#bguide").innerHTML = st.group
+      ? "<b>" + st.group + "조</b> 질문을 함께 읽고, 대표 질문 하나에 「이걸로 고르기」를 눌러. 한 사람만 누르면 돼."
+      : "「내 질문 내기」에서 우리 조를 먼저 골라 줘.";
+  }
+  function paintBoard() {
+    var G = C.GROUPS || 9, h = "";
+    for (var g = 1; g <= G; g++) {
+      var gr = brows.filter(function (r) { return r.group === g; }), my = g === st.group;
+      var picked = gr.filter(function (r) { return r.pick; })[0];
+      h += '<section class="bcard' + (my ? " my" : "") + (gr.length ? "" : " none") + '" data-g="' + g + '"><h3><span class="gn">' + g + "조</span>" +
+        (my ? '<span class="us">우리 조</span>' : "") + '<span class="cnt">' + (gr.length ? gr.length + "명" : "") + "</span>" +
+        (picked ? '<span class="pk">★ 대표 골랐어</span>' : "") + "</h3>";
+      h += gr.length ? gr.map(function (r) {
+        return '<div class="bq' + (r.pick ? " pick" : "") + (r.mine ? " mine" : "") + '"><div class="bt">' + esc(r.text) + "</div>" +
+          (r.mine ? '<span class="me">내 질문</span>' : "") + (r.pick ? '<span class="pkb">★ 조 대표</span>' : "") +
+          (my ? '<button class="pickb" data-id="' + esc(r.id) + '">' + (r.pick ? "고르기 취소" : "이걸로 고르기") + "</button>" : "") + "</div>";
+      }).join("") : '<div class="nothing">아직 없어.</div>';
+      h += "</section>";
+    }
+    $("#bgrid").innerHTML = h;
+    $$("#bgrid .pickb").forEach(function (b) {
+      b.onclick = function () {
+        var id = b.dataset.id, r = brows.filter(function (x) { return x.id === id; })[0], nid = r && r.pick ? "" : id;
+        brows.forEach(function (x) { if (x.group === st.group) x.pick = x.id === nid; }); paintBoard();
+        Api.pick(L.id, st.group, nid).then(function (res) { if (!res.ok) throw new Error(res.error); st.picked = !!nid; save(); paintSteps(); toast(nid ? "우리 조 대표 질문으로 골랐어" : "고르기를 취소했어"); })
+          .catch(function (e) { toast("저장하지 못했어: " + (e.message || e)); loadBoard(); });
+      };
+    });
+  }
+  function loadBoard(quiet) {
+    if (bbusy) return; bbusy = true; bguide();
+    if (!quiet) $("#bgrid").classList.add("loading");
+    Api.board(L.id, device()).then(function (r) {
+      if (!r.ok) throw new Error(r.error);
+      brows = r.rows.map(function (x) { if (st.myid && x.id === st.myid) x.mine = true; return x; });
+      paintBoard();
+    }).catch(function (e) { if (!quiet) $("#bgrid").innerHTML = '<div class="err-box">질문을 불러오지 못했어. 「새로고침」을 눌러 봐.</div>'; })
+      .then(function () { bbusy = false; $("#bgrid").classList.remove("loading"); });
+  }
+  $("#bref").onclick = function () { loadBoard(); };
+  onSlide = function (id) {
+    clearInterval(btimer);
+    if (id === "board") { loadBoard(); btimer = setInterval(function () { if (!document.hidden) loadBoard(true); }, 12000); }
+  };
   go(st.slide || 0);
 })();

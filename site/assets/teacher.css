@@ -109,3 +109,8 @@ main{padding:12px 18px 90px}
 
 .toast{position:fixed;left:50%;top:70px;transform:translateX(-50%) translateY(-200%);visibility:hidden;background:var(--ink);color:#fff;padding:9px 16px;border-radius:10px;z-index:95;transition:transform .25s}
 .toast.show{transform:translateX(-50%);visibility:visible}
+
+/* 조 대표 (학생들이 조에서 고른 질문) */
+.q.pick{border-color:#c8a226;box-shadow:inset 4px 0 0 #c8a226}
+.q .pk{display:inline-block;background:#c8a226;color:#fff;font-size:.72rem;font-weight:700;border-radius:6px;padding:0 7px}
+.gs.pk{outline:2px solid #c8a226}
